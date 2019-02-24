@@ -141,11 +141,11 @@ int find_empty_process(void)
 {
 	int i;
 
-	repeat:
+	repeat: // last_pid => last available pid nr (not necessarily needed to be same as i)
 		if ((++last_pid)<0) last_pid=1;
 		for(i=0 ; i<NR_TASKS ; i++)
 			if (task[i] && task[i]->pid == last_pid) goto repeat;
-	for(i=1 ; i<NR_TASKS ; i++)
+	for(i=1 ; i<NR_TASKS ; i++) // find first empty entry to put task_struct
 		if (!task[i])
 			return i;
 	return -EAGAIN;
