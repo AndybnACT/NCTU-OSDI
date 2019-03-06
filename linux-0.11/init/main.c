@@ -137,9 +137,11 @@ void main(void)		/* This really IS void, no error here. */
 	hd_init();
 	floppy_init();
 	sti();
-	panic(""); 
+	// panic(""); 
+    // printk("testtest\n");
 	move_to_user_mode();
 	if (!fork()) {		/* we count on this going ok */
+        // printk("Child!"); 
 		init();
 	}
 /*
@@ -180,6 +182,7 @@ void init(void)
 	printf("%d buffers = %d bytes buffer space\n\r",NR_BUFFERS,
 		NR_BUFFERS*BLOCK_SIZE);
 	printf("Free mem: %d bytes\n\r",memory_end-main_memory_start);
+    printf("Student ID: b071525\n");
 	if (!(pid=fork())) {
 		close(0);
 		if (open("/etc/rc",O_RDONLY,0))
