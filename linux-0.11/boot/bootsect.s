@@ -33,6 +33,8 @@
 	begbss:
 	.text
 
+    .equ HELLOLEN, 1
+
 	.equ SETUPLEN, 4		# nr of setup-sectors
 	.equ BOOTSEG, 0x07c0		# original address of boot-sector
 	.equ INITSEG, 0x9000		# we move boot here - out of the way
@@ -62,12 +64,72 @@ go:	mov	%cs, %ax
 	mov	%ax, %ss
 	mov	$0xFF00, %sp		# arbitrary value >>512
 
+####### lab2 #######
+
+# keyboard character reader, press 1 to boot hello, 2 to boot Linux
+
+img_menu:
+    
+# print menu
+    mov $0x03, %ah      # read cursor pos
+    xor %bh, %bh
+    int $0x10
+    
+    mov $43, %cx
+    mov $0x0007, %bx   # page 0, attribute 7
+    mov $INITSEG, %ax
+    mov %ax, %es
+    mov $menu_msg, %bp
+    mov $0x1301, %ax
+    int $0x10
+    
+# get character
+
+    xor %ax, %ax
+    int $0x16
+    
+# determine where to go
+
+    cmp $0x31, %al # ascii 1
+    je load_hello
+    
+    cmp $0x32, %al
+    je load_setup
+
+    jmp img_menu
+
+
+load_hello:
+# Load hello at 0x10000    
+    mov $0x0000, %dx      # drive 0, head 0
+    mov $0x0002, %cx      # sector 2, track 0 >>> what's track??
+    xor %bx, %bx
+    mov $0x0100, %ax
+    mov %ax, %es          # set buffer ptr = 0x10000
+    .equ AX, 0x0200+HELLOLEN
+    mov $AX, %ax          # service 2, nr of sector=1
+    int $0x13
+    jnc ok_load_hello     # jump if (CF == 0)
+    xor %dx, %dx
+    xor %ax, %ax
+    int $0x13             # reset the disk
+    jmp load_hello
+
+# jump to hello
+
+ok_load_hello:
+    .equ sel_cs0, 0x0100 #select for code segment 0
+    ljmp $sel_cs0, $0 #Jump to hello
+    # cpu will not return here
+
+####### lab2 #######
+
 # load the setup-sectors directly after the bootblock.
 # Note that 'es' is already set up.
 
 load_setup:
 	mov	$0x0000, %dx		# drive 0, head 0
-	mov	$0x0002, %cx		# sector 2, track 0
+	mov	$0x0003, %cx		# sector 3, track 0
 	mov	$0x0200, %bx		# address = 512, in INITSEG
 	.equ    AX, 0x0200+SETUPLEN
 	mov     $AX, %ax		# service 2, nr of sectors
@@ -147,7 +209,7 @@ root_defined:
 #
 # in:	es - starting address segment (normally 0x1000)
 #
-sread:	.word 1+ SETUPLEN	# sectors read of current track
+sread:	.word 2+ SETUPLEN	# sectors read of current track
 head:	.word 0			# current head
 track:	.word 0			# current track
 
@@ -244,6 +306,11 @@ kill_motor:
 sectors:
 	.word 0
 
+menu_msg:
+    .byte 13,10
+    .ascii "Press 1 to Load hello, 2 to load linux:"
+    .byte 13,10
+    
 msg1:
 	.byte 13,10
 	.ascii "Loading system ..."

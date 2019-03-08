@@ -42,11 +42,11 @@ LIBS	=lib/lib.a
 
 all:	Image	
 
-Image: boot/bootsect boot/setup tools/system
+Image: boot/bootsect boot/setup tools/system boot/hello
 	cp -f tools/system system.tmp
 	strip system.tmp
 	objcopy -O binary -R .note -R .comment system.tmp tools/kernel
-	tools/build.sh boot/bootsect boot/setup tools/kernel Image $(ROOT_DEV)
+	tools/build.sh boot/bootsect boot/hello boot/setup tools/kernel Image $(ROOT_DEV)
 	rm system.tmp
 	rm tools/kernel -f
 	sync
@@ -93,6 +93,9 @@ boot/setup: boot/setup.s
 
 boot/bootsect: boot/bootsect.s
 	make bootsect -C boot
+
+boot/hello: boot/hello.s
+	make hello -C boot
 
 tmp.s:	boot/bootsect.s tools/system
 	(echo -n "SYSSIZE = (";ls -l tools/system | grep system \
