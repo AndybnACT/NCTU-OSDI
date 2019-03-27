@@ -233,5 +233,6 @@ int getc(void)
 
 	while ((c = cons_getc()) == 0)
 		/* do nothing */;
+    // cprintf("getc returning: %d\n", c); // for debugging
 	return c;
 }

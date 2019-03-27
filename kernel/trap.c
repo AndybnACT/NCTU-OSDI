@@ -1,7 +1,7 @@
 #include <kernel/trap.h>
 #include <inc/mmu.h>
 #include <inc/x86.h>
-
+#include <inc/string.h> // memset
 /* For debugging, so print_trapframe can distinguish between printing
  * a saved trapframe and printing the current trapframe and print some
  * additional information in the latter case.
@@ -15,8 +15,9 @@ static struct Trapframe *last_tf;
  *       Interrupt descriptor table must be built at run time because shifted
  *       function addresses can't be represented in relocation records.
  */
-
-
+struct Gatedesc gates[256];
+extern void kbd_trap_handler;
+extern void timer_trap_handler;
 /* For debugging */
 static const char *trapname(int trapno)
 {
@@ -117,6 +118,20 @@ trap_dispatch(struct Trapframe *tf)
    *       We prepared the keyboard handler and timer handler for you
    *       already. Please reference in kernel/kbd.c and kernel/timer.c
    */
+   
+   // while (1) {
+   //     cprintf("=====>trap_dispatch\n   ");
+   //     cprintf(".");
+   // }
+    
+    switch (tf->tf_trapno) {
+        case (IRQ_OFFSET+IRQ_TIMER):
+            return timer_handler();
+        case (IRQ_OFFSET+IRQ_KBD):
+            return kbd_intr();
+        default:
+            cprintf("%s: %d\n",trapname(tf->tf_trapno), tf->tf_trapno);
+    }
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
@@ -159,9 +174,23 @@ void trap_init()
    *       There is a data structure called Pseudodesc in mmu.h which might
    *       come in handy for you when filling up the argument of "lidt"
    */
+    struct Pseudodesc gate_desc;
+    gate_desc.pd_lim = 256<<3;
+    gate_desc.pd_base = &gates;
+    
+    
+    cprintf("initializing IRQ\n");
+    cprintf("kbd handler: %p\n", &kbd_trap_handler);
 
+    memset(gates, 0, 256*sizeof(struct Gatedesc));
+    // for (size_t i = 0; i < 255; i++) {
+    //     SETGATE(gates[i], 0, 0x0, &)
+    // }
 	/* Keyboard interrupt setup */
+    SETGATE(gates[IRQ_OFFSET+IRQ_KBD], 0, GD_KT, &kbd_trap_handler, 0);
 	/* Timer Trap setup */
+    SETGATE(gates[IRQ_OFFSET+IRQ_TIMER], 1, GD_KT, &timer_trap_handler, 0);
   /* Load IDT */
+    lidt(&gate_desc);
 
 }

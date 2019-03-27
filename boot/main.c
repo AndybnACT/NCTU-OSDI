@@ -41,6 +41,7 @@ bootmain(void)
 	struct Proghdr *ph, *eph;
 
 	// read 1st page off disk
+    // $ readelf -h kernel/system tells 
 	readseg((uint32_t) ELFHDR, SECTSIZE*8, 0);
 
 	// is this a valid ELF?
@@ -98,6 +99,7 @@ readseg(uint32_t pa, uint32_t count, uint32_t offset)
 void
 waitdisk(void)
 {
+    // 0x01F0-0x01F7  The primary ATA harddisk controller.
 	// wait for disk reaady
 	while ((inb(0x1F7) & 0xC0) != 0x40)
 		/* do nothing */;

@@ -5,14 +5,14 @@
  * It pushes a 0 in place of the error code, so the trap frame has the same
  * format in either case.
  */
-#define TRAPHANDLER_NOEC(name, num)					\
-	.globl name;							\
+#define TRAPHANDLER_NOEC(name, num)		    	\
+	.globl name;							    \
 	.type name, @function;						\
-	.align 2;							\
-	name:								\
-	pushl $0;							\
-	pushl $(num);							\
-	jmp _alltraps
+	.align 2;							        \
+	name:								        \
+	   pushl $0;						    	\
+	   pushl $(num);							\
+	   jmp _alltraps
 
 
 .text
@@ -22,6 +22,9 @@
  *       The Trap number are declared in inc/trap.h which might come in handy
  *       when declaring interface for ISRs.
  */
+TRAPHANDLER_NOEC(kbd_trap_handler, IRQ_KBD+IRQ_OFFSET)
+
+TRAPHANDLER_NOEC(timer_trap_handler, IRQ_TIMER+IRQ_OFFSET)
 
 .globl default_trap_handler;
 _alltraps:
@@ -36,10 +39,12 @@ _alltraps:
    *       You may want to leverage the "pusha" instructions to reduce your work of
    *       pushing all the general purpose registers into the stack.
 	 */
-
+    pushl %ds
+    pushl %es
+    pusha 
 	pushl %esp # Pass a pointer which points to the Trapframe as an argument to default_trap_handler()
 	call default_trap_handler
-
+    add $44, %esp # 40 for part of Trapframe and 4 for pushed esp
 	add $8, %esp # Cleans up the pushed error code and pushed ISR number
 	iret # pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP!
 

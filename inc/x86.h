@@ -47,7 +47,7 @@ breakpoint(void)
 static __inline uint8_t
 inb(int port)
 {
-	uint8_t data;
+	uint8_t data; // Input word from I/O port in DX into AX.
 	__asm __volatile("inb %w1,%0" : "=a" (data) : "d" (port));
 	return data;
 }

@@ -28,10 +28,12 @@ start:
 
 	# Jump to next instruction, but in 32-bit code segment.
 	# Switches processor into 32-bit mode.
+    # jmp     loop # for debugging
 	ljmp    $PROT_MODE_CSEG, $protcseg
 
 .code32                     # Assemble for 32-bit mode
 protcseg:
+    # jmp loop  # for debugging
 	# Set up the protected-mode data segment registers
 	movw    $PROT_MODE_DSEG, %ax    # Our data segment selector
 	movw    %ax, %ds                # -> DS: Data Segment
@@ -58,15 +60,15 @@ gdt:
 #
 #       You may reference mmu.h for Application Segment Type for 
 #       easy-to-use macro when defining segmentation type.
-
-	SEG_NULL    # NULL segment
-	SEG()     # Kernel code segment
-	SEG()     # Kernel data segment
+    SEG_NULL
+	SEG(STA_X, 0x0, 0xFFFFF000)     # Kernel code segment
+	SEG(STA_W, 0x0, 0xFFFFF000)     # Kernel data segment
 
 # TODO: Please fillup the GDT register for gdt in order to used
 #       with "lgdt" instruction.
 # Note: You can reference lab3_reference page 13 for detail meaning
 #       of each bit of GDT register.
+# .word => 2 bytes
 gdtdesc: 
-	.word	# gdt limit
-	.word	# gdt base
+	.word	gdtdesc-gdt-1  # or 23. gdt limit-1 in bytes
+	.word  	gdt, 0x0 # gdt base 15:0, 16:31	

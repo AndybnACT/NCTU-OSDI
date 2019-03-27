@@ -13,7 +13,8 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
-	{ "print_tick", "Display system tick", print_tick }
+	{ "print_tick", "Display system tick", print_tick },
+    { "chgcolor", "Change text color", chgcolor}
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -35,6 +36,20 @@ int mon_kerninfo(int argc, char **argv)
    *       Use PROVIDE inside linker script and calculate the
    *       offset.
    */
+    // symbol in linker script
+    extern void kernel_load_addr, etext, __STABSTR_END__, end; 
+    
+    int code_start         = (int) &kernel_load_addr;
+    int code_end           = (int) &etext;
+    int aligned_data_start = (((int) &__STABSTR_END__) + (0xFFF)) & (~0xFFF);
+    int data_end           = (int) &end;
+    cprintf("kernel code loads at 0x%lx, size = %d Bytes\n", 
+            code_start, code_end - code_start);
+    cprintf("kernel data loads at 0x%lx, size = %d Bytes\n",
+            aligned_data_start, data_end - aligned_data_start);
+    cprintf("Kernel total size = %d Bytes\n", data_end - code_start);        
+    
+    
 	return 0;
 }
 int print_tick(int argc, char **argv)
@@ -42,6 +57,17 @@ int print_tick(int argc, char **argv)
 	cprintf("Now tick = %d\n", get_tick());
 }
 
+int chgcolor(int argc, char **argv)
+{   
+    if (argc != 2) {
+        cprintf("Invalid number of arguments! only accept one\n");
+        return 0;
+    }
+    char color = (char) strtol(argv[1], NULL, 16);
+    cprintf("about to change color code = %d\n", color);
+    settextcolor(color, 0);
+    return 0;
+}
 #define WHITESPACE "\t\r\n "
 #define MAXARGS 16
 

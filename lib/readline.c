@@ -14,10 +14,12 @@ char *readline(const char *prompt)
 	i = 0;
 	while (1) {
 		c = getc();
-		if (c < 0) {
+		if (c < -1) {
 			cprintf("read error: %e\n", c);
 			return NULL;
-		} else if ((c == '\b' || c == '\x7f') && i > 0) {
+		} else if (c == -1) {
+            continue;
+        } else if ((c == '\b' || c == '\x7f') && i > 0) {
 			putch('\b');
 			i--;
 		} else if (c >= ' ' && i < BUFLEN-1) {
