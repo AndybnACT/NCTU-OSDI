@@ -115,7 +115,9 @@ void shell()
 	cprintf("Type 'help' for a list of commands.\n");
 
 	while(1)
-	{
+	{    
+        // cprintf("Now tick = %d\n", get_tick());
+        // busy_wait(1);
 		buf = readline("OSDI> ");
 		if (buf != NULL)
 		{

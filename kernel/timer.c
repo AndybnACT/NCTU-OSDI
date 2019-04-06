@@ -28,6 +28,16 @@ unsigned long get_tick()
 {
 	return jiffies;
 }
+
+void busy_wait(unsigned long sec){
+    unsigned long cur = jiffies;
+    unsigned long until = cur + sec*100;
+    while (jiffies < until) { // !! overflow may happens
+        // cprintf("Now tick = %d %d\n", get_tick(), until);
+        // weird, if we do nothing here, busywait won't break
+    }
+}
+
 void timer_init()
 {
 	set_timer(TIME_HZ);
