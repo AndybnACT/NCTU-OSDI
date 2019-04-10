@@ -16,8 +16,6 @@ static struct Trapframe *last_tf;
  *       function addresses can't be represented in relocation records.
  */
 struct Gatedesc gates[256];
-extern void kbd_trap_handler;
-extern void timer_trap_handler;
 /* For debugging */
 static const char *trapname(int trapno)
 {
@@ -100,7 +98,13 @@ print_regs(struct PushRegs *regs)
 	cprintf("  ecx  0x%08x\n", regs->reg_ecx);
 	cprintf("  eax  0x%08x\n", regs->reg_eax);
 }
-
+void default_pgflt_handler(struct Trapframe *tf){
+    cprintf("[B071525] pagefault @ 0x%lx\n", tf->cr2);
+    while (1) {
+        // Do nothing
+    }
+    return;
+}
 static void
 trap_dispatch(struct Trapframe *tf)
 {
@@ -125,6 +129,8 @@ trap_dispatch(struct Trapframe *tf)
    // }
     
     switch (tf->tf_trapno) {
+        case (T_PGFLT):
+            return default_pgflt_handler(tf);
         case (IRQ_OFFSET+IRQ_TIMER):
             return timer_handler();
         case (IRQ_OFFSET+IRQ_KBD):
@@ -175,17 +181,22 @@ void trap_init()
    *       come in handy for you when filling up the argument of "lidt"
    */
     struct Pseudodesc gate_desc;
+    extern void kbd_trap_handler;
+    extern void timer_trap_handler;
+    extern void pgflt_trap_handler;
     gate_desc.pd_lim = 256<<3;
     gate_desc.pd_base = &gates;
     
     
-    cprintf("initializing IRQ\n");
-    cprintf("kbd handler: %p\n", &kbd_trap_handler);
+    cprintf("initializing IRQ handlers\n");
+    // cprintf("kbd handler: %p\n", &kbd_trap_handler);
 
     memset(gates, 0, 256*sizeof(struct Gatedesc));
     // for (size_t i = 0; i < 255; i++) {
     //     SETGATE(gates[i], 0, 0x0, &)
     // }
+    /* pagefault interrupt setup */
+    SETGATE(gates[T_PGFLT], 1, GD_KT, &pgflt_trap_handler, 0);
 	/* Keyboard interrupt setup */
     SETGATE(gates[IRQ_OFFSET+IRQ_KBD], 0, GD_KT, &kbd_trap_handler, 0);
 	/* Timer Trap setup */

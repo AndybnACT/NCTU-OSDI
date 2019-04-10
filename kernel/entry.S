@@ -2,6 +2,7 @@
 #include <inc/memlayout.h>
 
 #define RELOC(x) ((x) - KERNBASE)
+# KERNBASE=0xf0000000
 
 .globl _start
 .global entry
@@ -9,7 +10,7 @@ _start = RELOC(entry)
 
 .text
 entry:
-	movw	$0x1234,0x472			# warm boot
+	movw	$0x1234,0x472			# warm boot, What's this?
 
 	# We haven't set up virtual memory yet, so we're running from
 	# the physical address the boot loader loaded the kernel at: 1MB
@@ -33,7 +34,8 @@ entry:
 	# C code.
 	mov	$relocated, %eax
 	jmp	*%eax
-
+    # jmp relocated
+    
 relocated:
 
     # Setup new gdt

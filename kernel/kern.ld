@@ -12,6 +12,7 @@ SECTIONS
 
 	/* AT(...) gives the load address of this section, which tells
 	   the boot loader where to load the kernel in physical memory */
+    /* AT(...) tells PhysAddr of elf program, see $readelf -e kernel/system  */
 	.text : AT(0x100000) {
 		*(.text .stub .text.* .gnu.linkonce.t.*)
 	}
