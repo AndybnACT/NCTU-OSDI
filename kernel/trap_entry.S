@@ -37,6 +37,8 @@ TRAPHANDLER_NOEC(kbd_trap_handler, IRQ_KBD+IRQ_OFFSET)
 
 TRAPHANDLER_NOEC(timer_trap_handler, IRQ_TIMER+IRQ_OFFSET)
 
+TRAPHANDLER_NOEC(ide_trap_handler, IRQ_IDE+IRQ_OFFSET)
+
 .globl default_trap_handler;
 _alltraps:
   /* TODO: Since we are going to call default_trap_handler, we have to prepare

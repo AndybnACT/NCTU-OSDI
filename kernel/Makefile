@@ -13,6 +13,8 @@ KERN_SRCFILES := kernel/entry.S \
 		kernel/entrypgdir.c \
 		kernel/assert.c \
 		kernel/kclock.c \
+		kernel/pci.c  \
+		kernel/ide.c  \
 		lib/printfmt.c \
 		lib/string.c
 
@@ -28,6 +30,8 @@ KERN_OBJS = kernel/entry.o \
 	kernel/entrypgdir.o \
 	kernel/assert.o \
 	kernel/kclock.o \
+	kernel/pci.o   \
+	kernel/ide.o   \
 	kernel/shell.o \
 	kernel/timer.o \
 	lib/printfmt.o \

@@ -135,6 +135,8 @@ trap_dispatch(struct Trapframe *tf)
             return timer_handler();
         case (IRQ_OFFSET+IRQ_KBD):
             return kbd_intr();
+        case (IRQ_OFFSET+IRQ_IDE):
+            return ide_intr(tf);
         default:
             cprintf("%s: %d\n",trapname(tf->tf_trapno), tf->tf_trapno);
     }
@@ -184,6 +186,7 @@ void trap_init()
     extern void kbd_trap_handler;
     extern void timer_trap_handler;
     extern void pgflt_trap_handler;
+    extern void ide_trap_handler;
     gate_desc.pd_lim = 256<<3;
     gate_desc.pd_base = &gates;
     
@@ -201,6 +204,8 @@ void trap_init()
     SETGATE(gates[IRQ_OFFSET+IRQ_KBD], 0, GD_KT, &kbd_trap_handler, 0);
 	/* Timer Trap setup */
     SETGATE(gates[IRQ_OFFSET+IRQ_TIMER], 1, GD_KT, &timer_trap_handler, 0);
+    /* IDE IRQ */
+    SETGATE(gates[IRQ_OFFSET+IRQ_IDE], 0, GD_KT, &ide_trap_handler, 0);
   /* Load IDT */
     lidt(&gate_desc);
 
