@@ -11,7 +11,6 @@
 	.align 2;							        \
 	name:								        \
 	   pushl $0;						    	\
-       pushl $0;                                \
 	   pushl $(num);							\
 	   jmp _alltraps
 
@@ -28,8 +27,6 @@
 .type pgflt_trap_handler, @function
 .align 2
 pgflt_trap_handler:
-   movl %cr2, %eax
-   pushl %eax # Surprisingly, processor does not store cr2 on stack automatically
    pushl $(T_PGFLT)
    jmp _alltraps
  
@@ -55,7 +52,7 @@ _alltraps:
     pusha 
 	pushl %esp # Pass a pointer which points to the Trapframe as an argument to default_trap_handler()
 	call default_trap_handler
-    add $48, %esp # 44 for part of Trapframe and 4 for pushed esp
+    add $44, %esp # 44 for part of Trapframe and 4 for pushed esp
 	add $8, %esp # Cleans up the pushed error code, and pushed ISR number
 	iret # pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP!
 

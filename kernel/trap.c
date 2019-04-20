@@ -98,8 +98,9 @@ print_regs(struct PushRegs *regs)
 	cprintf("  ecx  0x%08x\n", regs->reg_ecx);
 	cprintf("  eax  0x%08x\n", regs->reg_eax);
 }
-void default_pgflt_handler(struct Trapframe *tf){
-    cprintf("[B071525] pagefault @ 0x%lx\n", tf->cr2);
+void default_pgflt_handler(void){
+    uint32_t cr2 = rcr2();
+    cprintf("[B071525] pagefault @ 0x%lx\n", cr2);
     while (1) {
         // Do nothing
     }
@@ -130,7 +131,7 @@ trap_dispatch(struct Trapframe *tf)
     
     switch (tf->tf_trapno) {
         case (T_PGFLT):
-            return default_pgflt_handler(tf);
+            return default_pgflt_handler();
         case (IRQ_OFFSET+IRQ_TIMER):
             return timer_handler();
         case (IRQ_OFFSET+IRQ_KBD):
