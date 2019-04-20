@@ -46,10 +46,10 @@ protcseg:
 	  movl    $start, %esp
 	  call bootmain
 loop:
-	jmp loop
+jmp loop
 
 # Bootstrap GDT
-	.p2align 2                                # force 4 byte alignment
+.p2align 2                                # force 4 byte alignment
 gdt:
 # TODO: Fillup GDT entry with SEG macro
 #       One for kernel code segment
