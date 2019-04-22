@@ -1,11 +1,13 @@
 #include <kernel/task.h>
 #include <kernel/sched.h>
 #include <inc/x86.h>
+#include <kernel/mem.h>
 
 #define ctx_switch(ts) \
   do { env_pop_tf(&((ts)->tf)); } while(0)
 
 extern Task *cur_task;
+int test;
 /* TODO: Lab5
 * Implement a simple round-robin scheduler (Start with the next one)
 *
@@ -31,14 +33,21 @@ void sched_yield(void)
     for (i = 1; i <= NR_TASKS; i++) {
         pick = (last_task + i)%NR_TASKS;
         if (tasks[pick].state == TASK_RUNNABLE){
+            // if (i != NR_TASKS)
+            //     printk("%d page addr of i=%lx\n", cur_task->task_id,page_lookup(cur_task->pgdir, &i, NULL));
+            test = i;
             last_task = pick;
             // set up state, remind_ticks, pgdir 
             cur_task = &tasks[pick];
             cur_task->state = TASK_RUNNING;
             cur_task->remind_ticks = TIME_QUANT;
+            // !!! IMPORTANT NOTE: must not use any local variable afrer lcr3 
+            // !!! if we use private kernel stack.
             lcr3(PADDR(cur_task->pgdir));
-            // context switch
             // printk("switch to %d\n", pick);
+            // if (test != NR_TASKS)
+            //     printk("%d page addr of i after cr3 loaded =%lx\n", cur_task->task_id, page_lookup(cur_task->pgdir, &i, NULL));
+            // context switch
             ctx_switch(cur_task);
             // no return
         }

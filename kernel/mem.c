@@ -580,40 +580,40 @@ setupvm(pde_t *pgdir, uint32_t start, uint32_t size)
 }
 
 
-// int32_t setupkstack(pde_t *vpgdir){
-//     uint32_t va;
-//     for (va = KSTACKTOP-KSTKSIZE; va < KSTACKTOP; va+= 0x1000) {
-//         struct PageInfo *pp = page_alloc(0);
-//         if (pp){
-//             if (page_insert(vpgdir, pp, va, (PTE_W | PTE_P)) != 0)
-//                 return -E_NO_MEM;
-//         }else{
-//             return -E_NO_MEM;
-//         }
-//     }
-//     return 0;
-// }
-// int32_t removekstack(pde_t *vpgdir){
-//     uint32_t va;
-//     for (va = KSTACKTOP-KSTKSIZE; va < KSTACKTOP; va+= 0x1000) {
-//         page_remove(vpgdir, va);
-//     }
-//     return 0;
-// }
-// int32_t copykstack(pde_t *new_pgdir){
-//     int32_t count = 0;
-//     uint32_t dest_va, va;
-//     for (va = KSTACKTOP-KSTKSIZE; va < KSTACKTOP; va+= 0x1000) {
-//         struct PageInfo *pp = page_lookup(new_pgdir, va, NULL);
-//         if (pp) {
-//             dest_va = page2kva(pp);
-//             memcpy(dest_va, va, PGSIZE);
-//         }else{
-//             return -1;
-//         }
-//     }
-//     return count;
-// }
+int32_t setupkstack(pde_t *vpgdir){
+    uint32_t va;
+    for (va = KSTACKTOP-KSTKSIZE; va < KSTACKTOP; va+= 0x1000) {
+        struct PageInfo *pp = page_alloc(0);
+        if (pp){
+            if (page_insert(vpgdir, pp, va, (PTE_W | PTE_P)) != 0)
+                return -E_NO_MEM;
+        }else{
+            return -E_NO_MEM;
+        }
+    }
+    return 0;
+}
+int32_t removekstack(pde_t *vpgdir){
+    uint32_t va;
+    for (va = KSTACKTOP-KSTKSIZE; va < KSTACKTOP; va+= 0x1000) {
+        page_remove(vpgdir, va);
+    }
+    return 0;
+}
+int32_t copykstack(pde_t *new_pgdir){
+    int32_t count = 0;
+    uint32_t dest_va, va;
+    for (va = KSTACKTOP-KSTKSIZE; va < KSTACKTOP; va+= 0x1000) {
+        struct PageInfo *pp = page_lookup(new_pgdir, va, NULL);
+        if (pp) {
+            dest_va = page2kva(pp);
+            memcpy(dest_va, va, PGSIZE);
+        }else{
+            return -1;
+        }
+    }
+    return count;
+}
 /* TODO: Lab 5
  * Set up kernel part of a page table.
  * You should map the kernel part memory with appropriate permission
@@ -629,9 +629,9 @@ setupkvm()
     pde_t *usr_pgdir = page2kva(pp);
     // naive method:  memcpy(usr_pgdir, kern_pgdir, PGSIZE);
     boot_map_region(usr_pgdir, KERNBASE, ROUNDUP((0xFFFFFFFF-KERNBASE), PGSIZE), 0x0, (PTE_W | PTE_P));
-    boot_map_region(usr_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), (PTE_W | PTE_P));
-    // setupkstack(usr_pgdir);
-    // copykstack(usr_pgdir);
+    // boot_map_region(usr_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), (PTE_W | PTE_P));
+    setupkstack(usr_pgdir);
+    copykstack(usr_pgdir);
     boot_map_region(usr_pgdir, IOPHYSMEM, ROUNDUP((EXTPHYSMEM - IOPHYSMEM), PGSIZE), IOPHYSMEM, (PTE_W) | (PTE_P));
     // currently useless boot_map_region(usr_pgdirs, UPAGES, ROUNDUP((sizeof(struct PageInfo) * npages), PGSIZE), PADDR(pages), (PTE_U | PTE_P));
     return usr_pgdir;

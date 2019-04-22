@@ -185,7 +185,7 @@ static void task_free(int pid)
         page_remove(task_pgdir, va);
     }
     // remove kernel stack
-    // removekstack(task_pgdir);
+    removekstack(task_pgdir);
     // remove page table
     ptable_remove(task_pgdir);
     // remove page directory
@@ -295,7 +295,7 @@ void task_init()
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
 	memset(&(tss), 0, sizeof(tss));
-	tss.ts_esp0 = (uint32_t)bootstack + KSTKSIZE;
+	tss.ts_esp0 = (uint32_t)KSTACKTOP;//bootstack + KSTKSIZE;
 	tss.ts_ss0 = GD_KD;
 
 	// fs and gs stay in user data segment
