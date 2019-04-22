@@ -15,10 +15,10 @@ static struct Trapframe *last_tf;
 /* Interrupt descriptor table.  (Must be built at run time because
  * shifted function addresses can't be represented in relocation records.)
  */
-<<<<<<< HEAD
-struct Gatedesc gates[256];
-/* For debugging */
-=======
+// <<<<<<< HEAD
+// struct Gatedesc gates[256];
+// /* For debugging */
+// =======
 struct Gatedesc idt[256] = { { 0 } };
 struct Pseudodesc idt_pd = {
 	sizeof(idt) - 1, (uint32_t) idt
@@ -27,7 +27,7 @@ struct Pseudodesc idt_pd = {
 /* Trap handlers */
 TrapHandler trap_hnd[256] = { 0 };
 
->>>>>>> origin/lab5
+// >>>>>>> origin/lab5
 static const char *trapname(int trapno)
 {
 	static const char * const excnames[] = {
@@ -134,14 +134,6 @@ env_pop_tf(struct Trapframe *tf)
 		"\tiret"
 		: : "g" (tf) : "memory");
 	panic("iret failed");  /* mostly to placate the compiler */
-}
-void default_pgflt_handler(void){
-    uint32_t cr2 = rcr2();
-    cprintf("[B071525] pagefault @ 0x%lx\n", cr2);
-    while (1) {
-        // Do nothing
-    }
-    return;
 }
 static void
 trap_dispatch(struct Trapframe *tf)
