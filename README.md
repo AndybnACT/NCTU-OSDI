@@ -80,7 +80,7 @@
     
     | Virtual Range                | Physical Range       |Description|
     | :--------------------------- | :------------------- |:----------------------------------------------|
-    | UPAGE:UPAGE+4MB              | PADDR(pages)         |   Read-only copies of `struct PageInfo *pages` for user, possibly leaking??|
+    | UPAGE:some 4K boundary       | PADDR(pages)         |   Read-only copies of `struct PageInfo *pages` for user, possibly leaking??|
     | KSTACKTOP-KSTKSIZE:KSTACKTOP | PADDR(bootstack)     | Kernel stack|
     | 0xF0000000-0xFFFFFFFF        | 0x0-0xFFFFFFF        | Kernel image, BIOS routine, MMIO, parts of user mem??|
     | IOPHYSMEM-EXTPHYSMEM         | IOPHYSMEM-EXTPHYSMEM | MMIO, only used by kernel|
@@ -93,7 +93,7 @@
 5. why we use`mov $relocated, %eax; jmp *eax`instead of`jmp relocated`? If we use the later one, will it incur page fault? If yes, where the page fault incurs. If no, explain the reason.
     - We can observe differences by `objdump -d` the kernel ELF file. If we use the former one, the `jmp` instruction has `eb` opcode. While the later one generates `ff` opcode. According to [x86 instruction set reference](https://c9x.me/x86/html/file_module_x86_id_147.html), `jmp` with `eb` opcode is a near jump, which adds program counter by a signed 8-bit integer taken from the following byte. Therefore, that `jmp` instruction is impossible to set EIP to high memory, `KERNBASE`. In fact it just take the physical address of `relocated` as virtual one and jumps there. Everything works normally since `entry_pgdir.c` maps low memory as well. However, since the following calls and jumps all take relative addresses, `EIP` will still run at low address when loading new paging structure, where there is no mapping from low virtual memory to low physical one, at `mem_init`. Consequently, the first dereference of the program counter after loading `cr3` incurs page translation fail, resulting the page fault.
     
-    >>>>>>>>>>>>>>>>>>>>> ![](https://i.imgur.com/YZUoNwe.png)
+    >>>>> ![](https://i.imgur.com/YZUoNwe.png)
 ```
 f0100f5c <mem_init>:
 ...

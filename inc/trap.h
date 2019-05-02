@@ -62,7 +62,6 @@ struct Trapframe {
 	uint16_t tf_ds;
 	uint16_t tf_padding2;
 	uint32_t tf_trapno;
-    uint32_t cr2; // used for pagefault
 	/* below here defined by x86 hardware */
 	uint32_t tf_err;
 	uintptr_t tf_eip;
