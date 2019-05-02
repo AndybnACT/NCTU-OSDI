@@ -2,9 +2,10 @@
 #include <kernel/trap.h>
 #include <kernel/picirq.h>
 #include <kernel/task.h>
+#include <kernel/cpu.h>
 #include <inc/mmu.h>
 #include <inc/x86.h>
-#include <kernel/sched.h>
+#include <kernel/timer.h>
 
 #define TIME_HZ 100
 
@@ -19,6 +20,11 @@ void set_timer(int hz)
 }
 
 /* It is timer interrupt handler */
+//
+// TODO: Lab6
+// Modify your timer_handler to support Multi processor
+// Don't forget to acknowledge the interrupt using lapic_eoi()
+//
 void timer_handler(struct Trapframe *tf)
 {
     // extern void sched_yield();
