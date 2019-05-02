@@ -1,2 +1,2 @@
-1. Labs are placed into branches. please simply `$git checkout` to review a specific lab.
-2. Course Information: This [link](https://hackmd.io/c/B1TbUB5BV/%2FQseQZ_hLSFm3kAFHB_aM-Q) refer to full descriptions of all labs. Note that the link may be dead after the semester.
+## Porting Bus Mastering DMA on NCTUOS
+Everyone has to host a 15-minute workshop in this class, and my topic is about DMA. Thus, I decided to implement bus mastering DMA on our NCTUOS and present a DMA read after kernel is loaded. Please refer to my [slides.pdf](./slides.pdf) for details.
