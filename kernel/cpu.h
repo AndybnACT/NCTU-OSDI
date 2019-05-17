@@ -37,11 +37,15 @@ extern unsigned char percpu_kstacks[NCPU][KSTKSIZE];
 
 int cpunum(void);
 #define thiscpu (&cpus[cpunum()])
+#define cur_task thiscpu->cpu_task
+void dispatch_cpu(Task *, struct CpuInfo *);
+
 
 void mp_init(void);
 void lapic_init(void);
 void lapic_startap(uint8_t apicid, uint32_t addr);
 void lapic_eoi(void);
 void lapic_ipi(int vector);
+void sched_yield(void);
 
 #endif

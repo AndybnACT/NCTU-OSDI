@@ -5,6 +5,7 @@
 #include <inc/mmu.h>
 #include <inc/x86.h>
 #include <inc/string.h> // memset
+#include <kernel/cpu.h>
 /* For debugging, so print_trapframe can distinguish between printing
  * a saved trapframe and printing the current trapframe and print some
  * additional information in the latter case.
@@ -155,7 +156,6 @@ trap_dispatch(struct Trapframe *tf)
 		if ((tf->tf_cs & 3) == 3)
 		{
 			// Trapped from user mode.
-			extern Task *cur_task;
 
 			// Disable interrupt first
 			// Think: Why we disable interrupt here?
@@ -195,7 +195,8 @@ void default_trap_handler(struct Trapframe *tf)
 
 void page_fault_handler(struct Trapframe *tf)
 {
-    printk("Page fault @ %p\n", rcr2());
+    uint32_t cr2 = rcr2();
+    printk("Page fault @ %p\n", cr2);
     while (1);
 }
 

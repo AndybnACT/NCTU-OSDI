@@ -6,10 +6,11 @@
 #include <inc/mmu.h>
 #include <inc/x86.h>
 #include <kernel/timer.h>
+#include <kernel/cpu.h>
 
 #define TIME_HZ 100
 
-static unsigned long jiffies = 0;
+static unsigned long jiffies[NCPU] = {0, };
 
 void set_timer(int hz)
 {
@@ -30,12 +31,10 @@ void timer_handler(struct Trapframe *tf)
     // extern void sched_yield();
     int i;
 
-    jiffies++;
+    jiffies[cpunum()]++;
 
     extern Task tasks[];
-
-    extern Task *cur_task;
-
+    lapic_eoi();
     if (cur_task != NULL)
     {
     /* TODO: Lab 5
@@ -48,26 +47,35 @@ void timer_handler(struct Trapframe *tf)
     * 4. sched_yield() if the time is up for current task
     *
     */
-        for (i = 0; i < NR_TASKS; i++) {
+        for (i = 0; i < NR_TASKS; i++) { // should implement percpu sleep queue
             if (tasks[i].state == TASK_SLEEP) {
                 tasks[i].remind_ticks--;
                 if (!tasks[i].remind_ticks) {
                     tasks[i].state = TASK_RUNNABLE;
+                    dispatch_cpu(&tasks[i], NULL);
                 }
             }
         }
         
         if (--cur_task->remind_ticks <= 0) {
             cur_task->state = TASK_RUNNABLE;
+            if (cur_task->parent_id == -1) {
+                // first task should not be migrated 
+                dispatch_cpu(cur_task, thiscpu);
+            }else{
+                dispatch_cpu(cur_task, NULL);// should lock
+            }
+            cur_task = NULL;
             // printk("timer\n");
             sched_yield();
         }
+        // printk("timer return\n");
     }
 }
 
 unsigned long sys_get_ticks()
 {
-  return jiffies;
+  return jiffies[cpunum()];
 }
 void timer_init()
 {
@@ -79,5 +87,11 @@ void timer_init()
   /* Register trap handler */
   extern void TIM_ISR();
   register_handler( IRQ_OFFSET + IRQ_TIMER, &timer_handler, &TIM_ISR, 0, 0);
+}
+
+void sys_do_sleep(uint32_t ticks) {
+    cur_task->state = TASK_SLEEP;
+    cur_task->remind_ticks = ticks;
+    sched_yield();
 }
 

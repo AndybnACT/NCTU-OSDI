@@ -2,6 +2,7 @@
 #include <inc/kbd.h>
 #include <inc/shell.h>
 #include <inc/x86.h>
+#include <inc/string.h>
 #include <kernel/mem.h>
 #include <kernel/trap.h>
 #include <kernel/picirq.h>
@@ -12,7 +13,6 @@
 
 extern void init_video(void);
 static void boot_aps(void);
-extern Task *cur_task;
 
 void kernel_main(void)
 {
@@ -77,6 +77,22 @@ boot_aps(void)
 	//      -- Wait for the CPU to finish some basic setup in mp_main(
 	// 
 	// Your code here:
+    int i;
+    extern char mpentry_start[], mpentry_end[];
+    // copy mpinit to MPENTRY_PADDR 
+    memmove(KADDR(MPENTRY_PADDR), mpentry_start, mpentry_end-mpentry_start);
+    // boot APs
+    for (i = 1; i < ncpu; i++) {
+        
+        // printk("Booting CPU %d\n", i);
+        // set per-core stack;
+        // note that size of each percpu_kstacks[i] is not KSTKSIZE + KSTKGAP!!!
+        mpentry_kstack = percpu_kstacks[i] + KSTKSIZE;
+        // mpentry_kstack = kstacktop_i-4; We cannot use it since there's no mapping yet
+        
+        lapic_startap(i, MPENTRY_PADDR);
+        while (cpus[i].cpu_status != CPU_STARTED);
+    }
 }
 
 // Setup code for APs
@@ -144,19 +160,33 @@ mp_main(void)
 	 * 6. init per-CPU system registers
 	 *       
 	 */
-	
+
 	// We are in high EIP now, safe to switch to kern_pgdir 
 	lcr3(PADDR(kern_pgdir));
 	printk("SMP: CPU %d starting\n", cpunum());
-	
-	// Your code here:
-	
+	// We have the mapping now, set esp to the correct value
+    uintptr_t kstacktop_i = KSTACKTOP - cpunum() * (KSTKSIZE + KSTKGAP);
+    __asm __volatile("subl %%esp, %1\n\t" \
+                     "movl %0, %%esp\n\t" \
+                     "subl %1, %%esp\n\t" \
+                     "movl %%esp, %1\n"
+                     ::"m" (kstacktop_i), "m" (mpentry_kstack):);
 
+	// Your code here:
+    // init lapic
+    lapic_init();
+    // init per-CPU task
+	task_init_percpu();
+    
+    // load idtr
+    extern struct Pseudodesc idt_pd;
+    lidt(&idt_pd);
+    
 	// TODO: Lab6
 	// Now that we have finished some basic setup, it's time to tell
 	// boot_aps() we're up ( using xchg )
 	// Your code here:
-
+    xchg(&thiscpu->cpu_status, CPU_STARTED);
 
 
 	/* Enable interrupt */

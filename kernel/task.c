@@ -7,6 +7,7 @@
 #include <kernel/mem.h>
 #include <kernel/cpu.h>
 #include <kernel/timer.h>
+#include <kernel/spinlock.h>
 
 // Global descriptor table.
 //
@@ -52,8 +53,9 @@ struct Pseudodesc gdt_pd = {
 
 
 
-static struct tss_struct tss;
+// static struct tss_struct tss;
 Task tasks[NR_TASKS];
+struct spinlock tasks_lock;
 
 extern char bootstack[];
 
@@ -67,7 +69,6 @@ uint32_t UDATA_SZ;
 uint32_t UBSS_SZ;
 uint32_t URODATA_SZ;
 
-Task *cur_task = NULL; //Current running task
 
 
 #define FOR_USR_STACK(va) \
@@ -108,11 +109,16 @@ int task_create()
 	/* Find a free task structure */
     // printk("creating task\n");
     for (pid = 0; pid < NR_TASKS; pid++) {
+        spin_lock(&tasks_lock);
         if (tasks[pid].state == TASK_FREE) {
+            tasks[pid].state = TASK_RUNNABLE;
             ts = &tasks[pid];
             break;
         }
+        spin_unlock(&tasks_lock);
     }
+    spin_unlock(&tasks_lock);
+    
     if (!ts)
         panic("cannot assign new pid\n");
     // printk("pid=%d\n", pid);
@@ -127,7 +133,7 @@ int task_create()
             printk("page_alloc failed\n");
             return -1;
         }
-        if (page_insert(ts->pgdir, pp, va, PTE_U|PTE_W) != 0){
+        if (page_insert(ts->pgdir, pp, (void*) va, PTE_U|PTE_W) != 0){
             printk("page_insert failed\n");
             return -1;
         }
@@ -185,7 +191,7 @@ static void task_free(int pid)
     
     // remove user stack
     for (va = USTACKTOP-USR_STACK_SIZE; va < USTACKTOP; va+=0x1000) {
-        page_remove(task_pgdir, va);
+        page_remove(task_pgdir, (void*) va);
     }
     // remove kernel stack
     // removekstack(task_pgdir);
@@ -217,9 +223,17 @@ void sys_kill(int pid)
    * Free the memory
    * and invoke the scheduler for yield
    */
-        tasks[pid].state = TASK_STOP;
-        task_free(pid);
-        sched_yield();
+        if (tasks[pid].state == TASK_RUNNABLE) { // in a queue
+            if (&thiscpu->cpu_rq == tasks[pid].cur_queue) {
+                tasks[pid].state = TASK_STOP;
+            }
+        }else if (tasks[pid].state == TASK_RUNNING) {
+            if (cur_task == &tasks[pid]) {
+                tasks[pid].state = TASK_STOP;
+                task_free(pid);
+                sched_yield();
+            }
+        }
 	}
 }
 
@@ -273,9 +287,9 @@ int sys_fork()
     /* 3. Copy the content of the old stack to the new one */
         FOR_USR_STACK(va){
             // map child's stack into kernel mem
-            struct PageInfo *pp = page_lookup(child->pgdir, va, NULL);
+            struct PageInfo *pp = page_lookup(child->pgdir, (void*) va, NULL);
             // copy 
-            memcpy(page2kva(pp), va, PGSIZE);
+            memcpy(page2kva(pp),(void*) va, PGSIZE);
         }
     /* Step 4: All user program use the same code for now */
         setupvm(tasks[pid].pgdir, (uint32_t)UTEXT_start, UTEXT_SZ);
@@ -284,8 +298,11 @@ int sys_fork()
         setupvm(tasks[pid].pgdir, (uint32_t)URODATA_start, URODATA_SZ);
     /* Step 5: let child and parent be distinguishable! */
         child->tf.tf_regs.reg_eax = 0;
+    /* assign to a CPU */
+        dispatch_cpu(child, NULL);
         return pid;
 	}
+    return -1;
 }
 
 /* TODO: Lab5
@@ -308,6 +325,7 @@ void task_init()
 		tasks[i].state = TASK_FREE;
 
 	}
+    spin_initlock(&tasks_lock);
 	task_init_percpu();
 }
 
@@ -326,25 +344,27 @@ void task_init()
 //
 void task_init_percpu()
 {
-	
-
+	struct tss_struct *tss = &(thiscpu->cpu_tss);
+    int cpuid = thiscpu->cpu_id;
 	int i;
 	extern int user_entry();
 	extern int idle_entry();
 	
+    uintptr_t kstacktop_i = KSTACKTOP - cpuid * (KSTKSIZE + KSTKGAP);
+    
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
-	memset(&(tss), 0, sizeof(tss));
-	tss.ts_esp0 = (uint32_t)bootstack + KSTKSIZE;
-	tss.ts_ss0 = GD_KD;
+	memset(tss, 0, sizeof(struct tss_struct));
+	tss->ts_esp0 = kstacktop_i;//(uint32_t)bootstack + KSTKSIZE;
+	tss->ts_ss0 = GD_KD;
 
 	// fs and gs stay in user data segment
-	tss.ts_fs = GD_UD | 0x03;
-	tss.ts_gs = GD_UD | 0x03;
+	tss->ts_fs = GD_UD | 0x03;
+	tss->ts_gs = GD_UD | 0x03;
 
 	/* Setup TSS in GDT */
-	gdt[GD_TSS0 >> 3] = SEG16(STS_T32A, (uint32_t)(&tss), sizeof(struct tss_struct), 0);
-	gdt[GD_TSS0 >> 3].sd_s = 0;
+	gdt[(GD_TSS0 >> 3) + cpuid] = SEG16(STS_T32A, (uint32_t)tss, sizeof(struct tss_struct), 0);
+	gdt[(GD_TSS0 >> 3) + cpuid].sd_s = 0;
 
 	/* Setup first task */
 	i = task_create();
@@ -355,7 +375,16 @@ void task_init_percpu()
 	setupvm(cur_task->pgdir, (uint32_t)UDATA_start, UDATA_SZ);
 	setupvm(cur_task->pgdir, (uint32_t)UBSS_start, UBSS_SZ);
 	setupvm(cur_task->pgdir, (uint32_t)URODATA_start, URODATA_SZ);
-	cur_task->tf.tf_eip = (uint32_t)user_entry;
+    
+    if (cpuid == 0) {
+        cur_task->tf.tf_eip = (uint32_t)user_entry;
+    }else{
+        cur_task->tf.tf_eip = (uint32_t)idle_entry;
+    }
+
+
+	// init runqueue
+    rq_init(&thiscpu->cpu_rq);
 
 	/* Load GDT&LDT */
 	lgdt(&gdt_pd);
@@ -364,7 +393,7 @@ void task_init_percpu()
 	lldt(0);
 
 	// Load the TSS selector 
-	ltr(GD_TSS0);
+	ltr(GD_TSS0 + (cpuid << 3));
 
 	cur_task->state = TASK_RUNNING;
 }

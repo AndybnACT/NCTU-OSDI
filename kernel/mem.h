@@ -45,6 +45,7 @@ void              mem_init                (void);
 
 int32_t           sys_get_num_free_page   (void);
 int32_t           sys_get_num_used_page   (void);
+void              *mmio_map_region(physaddr_t pa, size_t size);
 
 
 // int32_t removekstack(pde_t *vpgdir);

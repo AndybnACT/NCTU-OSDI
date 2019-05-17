@@ -133,6 +133,10 @@ lapic_eoi(void)
 static void
 microdelay(int us)
 {
+    size_t i, j=0;
+    for (i = 0; i < us*2800; i++) {
+        j = i + j + 1;
+    }
 }
 
 #define IO_RTC  0x70

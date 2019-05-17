@@ -7,6 +7,10 @@
 #define NULL	((void *) 0)
 #endif /* !NULL */
 
+// kernel/screen.c
+void sys_settextcolor(unsigned char forecolor, unsigned char backcolor);
+void sys_cls(void);
+
 //lib/kbd.c
 int k_getc(void);
 

@@ -3,7 +3,8 @@
 
 #include <inc/trap.h>
 #include <kernel/mem.h>
-#define NR_TASKS	10
+// do not exceed MAXQ*ncpu
+#define NR_TASKS	20
 #define TIME_QUANT	100
 
 typedef enum
@@ -18,16 +19,6 @@ typedef enum
 // Each task's user space
 #define USR_STACK_SIZE	(40960)
 
-typedef struct
-{
-	int task_id;
-	int parent_id;
-	struct Trapframe tf; //Saved registers
-	int32_t remind_ticks;
-	TaskState state;	//Task state
-  pde_t *pgdir;  //Per process Page Directory
-	
-} Task;
 
 // TODO Lab6
 // 
@@ -39,11 +30,41 @@ typedef struct
 //
 // 2. a list indicate the tasks in the runqueue
 //
+#define MAXQ 32
+typedef struct Task Task;
+
+struct task_queue{
+    Task *task[MAXQ];
+    int _st;
+    int _ed;
+    int _emptyq;
+};
+
 typedef struct
 {
-
+    uint32_t rq_cnt;
+    struct task_queue rq_task;
 } Runqueue;
 
+struct Task
+{
+    int cpuid;
+	int task_id;
+	int parent_id;
+	struct Trapframe tf; //Saved registers
+	int32_t remind_ticks;
+	TaskState state;	//Task state
+    pde_t *pgdir;  //Per process Page Directory
+	Runqueue *cur_queue;
+};
+
+
+
+
+Runqueue* cpu_pick_rq(void);
+void rq_init(Runqueue *rq);
+void rq_tsk_enqueue(Runqueue *rq, Task * t);
+Task* rq_tsk_dequeue(Runqueue *rq);
 
 void task_init();
 void task_init_percpu();
