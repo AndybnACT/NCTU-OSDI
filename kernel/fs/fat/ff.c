@@ -5144,7 +5144,7 @@ FRESULT f_forward (
 /*-----------------------------------------------------------------------*/
 /* Create file system on the logical drive                               */
 /*-----------------------------------------------------------------------*/
-#define N_ROOTDIR	512		/* Number of root directory entries for FAT12/16 */
+#define N_ROOTDIR	4096		/* Number of root directory entries for FAT12/16 */
 #define N_FATS		1		/* Number of FATs (1 or 2) */
 
 
@@ -5181,6 +5181,7 @@ FRESULT f_mkfs (
 
 	/* Get disk statics */
 	stat = disk_initialize(pdrv);
+    printk("pdrv = %d, vol = %d, disk init stat = %d\n", pdrv, vol, stat);
 	if (stat & STA_NOINIT) return FR_NOT_READY;
 	if (stat & STA_PROTECT) return FR_WRITE_PROTECTED;
 #if _MAX_SS != _MIN_SS		/* Get disk sector size */
@@ -5190,19 +5191,22 @@ FRESULT f_mkfs (
 #endif
 	if (_MULTI_PARTITION && part) {
 		/* Get partition information from partition table in the MBR */
+        printk("Get partition information from partition table in the MBR\n");
 		if (disk_read(pdrv, fs->win, 0, 1) != RES_OK) return FR_DISK_ERR;
-		if (ld_word(fs->win + BS_55AA) != 0xAA55) return FR_MKFS_ABORTED;
+        if (ld_word(fs->win + BS_55AA) != 0xAA55) return FR_MKFS_ABORTED;
 		tbl = &fs->win[MBR_Table + (part - 1) * SZ_PTE];
 		if (!tbl[4]) return FR_MKFS_ABORTED;	/* No partition? */
 		b_vol = ld_dword(tbl + 8);	/* Volume start sector */
 		n_vol = ld_dword(tbl + 12);	/* Volume size */
 	} else {
 		/* Create a single-partition in this function */
+        printk("Create a single-partition in this function\n");
 		if (disk_ioctl(pdrv, GET_SECTOR_COUNT, &n_vol) != RES_OK || n_vol < 128) {
-			return FR_DISK_ERR;
+            return FR_DISK_ERR;
 		}
 		b_vol = (sfd) ? 0 : 63;		/* Volume start sector */
 		n_vol -= b_vol;				/* Volume size */
+        printk("success!\n");
 	}
 
 	if (au & (au - 1)) au = 0;
@@ -5254,7 +5258,7 @@ FRESULT f_mkfs (
 		|| (fmt == FS_FAT32 && n_clst < MIN_FAT32)) {
 		return FR_MKFS_ABORTED;
 	}
-
+    printk("allocation unit = %d, cluster size = %d\n", au, n_clst);
 	/* Determine system ID in the partition table */
 	if (fmt == FS_FAT32) {
 		sys = 0x0C;		/* FAT32X */
@@ -5271,7 +5275,7 @@ FRESULT f_mkfs (
 		tbl = &fs->win[MBR_Table + (part - 1) * SZ_PTE];
 		tbl[4] = sys;
 		if (disk_write(pdrv, fs->win, 0, 1) != RES_OK) {	/* Write it to teh MBR */
-			return FR_DISK_ERR;
+            return FR_DISK_ERR;
 		}
 		md = 0xF8;
 	} else {
@@ -5292,13 +5296,15 @@ FRESULT f_mkfs (
 			st_dword(tbl + 12, n_vol);		/* Partition size in LBA */
 			st_word(fs->win + BS_55AA, 0xAA55);	/* MBR signature */
 			if (disk_write(pdrv, fs->win, 0, 1) != RES_OK) {	/* Write it to the MBR */
-				return FR_DISK_ERR;
+				printk("disk write failed\n");
+                return FR_DISK_ERR;
 			}
 			md = 0xF8;
 		}
 	}
 
 	/* Create BPB in the VBR */
+    printk("Create BPB in the VBR\n");
 	tbl = fs->win;							/* Clear sector */
 	mem_set(tbl, 0, SS(fs));
 	mem_cpy(tbl, "\xEB\xFE\x90" "MSDOS5.0", 11);/* Boot jump code, OEM name */

@@ -4,6 +4,7 @@
 // It's handel the file system APIs 
 #include <inc/stdio.h>
 #include <inc/syscall.h>
+#include <inc/assert.h>
 #include <fs.h>
 
 /*TODO: Lab7, file I/O system call interface.*/
@@ -50,32 +51,152 @@ int sys_open(const char *file, int flags, int mode)
 {
     //We dont care the mode.
 /* TODO */
+    int fd = fd_new();
+    int err;
+    
+    if (fd == -1)
+        return  fd; // Spec requires us to return -1 though  -STATUS_ENOSPC;
+        
+    struct fs_fd* d = fd_get(fd);
+    err = file_open(d, file, flags);
+    if (err) {
+        // printk("error opening file, %d\n", err);
+        fd_put(d);
+        fd = err;
+    }
+    fd_put(d);
+    return fd;
 }
 
 int sys_close(int fd)
 {
 /* TODO */
+    struct fs_fd* d = fd_get(fd);
+    int ret;
+    if (!d) {
+        return -STATUS_EINVAL;
+    }
+    ret = file_close(d);
+    fd_put(d);
+    return ret;
 }
 int sys_read(int fd, void *buf, size_t len)
 {
 /* TODO */
+    struct fs_fd* d = fd_get(fd);
+    int ret;
+    if (!d) {
+        return -STATUS_EBADF;
+    }
+    if (!buf || len < 0) {
+        return -STATUS_EINVAL;
+    }
+    ret = file_read(d, buf, len);
+    fd_put(d);
+    return ret;
 }
 int sys_write(int fd, const void *buf, size_t len)
 {
 /* TODO */
+    struct fs_fd *d = fd_get(fd);
+    int ret;
+    if (!d) {
+        return -STATUS_EBADF;
+    }
+    if (!buf || len < 0) {
+        return -STATUS_EINVAL;
+    }
+    ret = file_write(d, buf, len);
+    fd_put(d);
+    return ret;
+    
 }
 
 /* Note: Check the whence parameter and calcuate the new offset value before do file_seek() */
 off_t sys_lseek(int fd, off_t offset, int whence)
 {
 /* TODO */
+    struct fs_fd *d = fd_get(fd);
+    if (!d) {
+        return -STATUS_EBADF;
+    }
+    off_t abs_offset, ret;
+    size_t size = fd_get_size(d);
+    switch (whence) {
+        case SEEK_SET:
+            abs_offset = offset;
+            break;
+        case SEEK_CUR:
+            abs_offset = offset + fd_get_pos(d);
+            break;
+        case SEEK_END:
+            abs_offset = offset + size;
+            break;
+        default:
+            return -STATUS_EINVAL;
+    }
+    // if (abs_offset > size) {
+    //     panic("sys_lseek");
+    //     return -STATUS_EIO;
+    // }
+    ret = file_lseek(d, abs_offset);
+    fd_put(d);
+    return ret;
 }
 
 int sys_unlink(const char *pathname)
 {
 /* TODO */ 
+    return file_unlink(pathname);
 }
 
+int sys_opendir(const char *path)
+{
+    int fd = fd_new();
+    int err;
+    if (fd == -1)
+        return fd;
+    struct fs_fd* d = fd_get(fd);
+    err = file_opendir(d, path);
+    if (err) {
+        fd_put(d);
+        fd = err;
+    }
+    fd_put(d);
+    return fd;
+}
+
+int sys_readdir(int fd, struct stat *buf)
+{
+    struct fs_fd *d = fd_get(fd);
+    int ret;
+    if (!d) {
+        return -STATUS_EBADF;
+    }
+    if (!buf) {
+        return -STATUS_EINVAL;
+    }
+    ret = file_readdir(d, buf);
+    fd_put(d);
+    return ret;
+}
+
+int sys_closedir(int fd)
+{
+    struct fs_fd *d = fd_get(fd);
+    int ret;
+    if (!d) {
+        return -STATUS_EINVAL;
+    }
+    ret = file_closedir(d);
+    fd_put(d);
+    return ret;
+}
+
+int sys_mkdir(const char* path)
+{
+    return file_mkdir(path);
+}
 
               
 

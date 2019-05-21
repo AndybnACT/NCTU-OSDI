@@ -15,7 +15,9 @@ void fs_test()
         printk("Mount failed %d, try do mkfs.\n", res);
         /* Create FAT volume with default cluster size */
         res = f_mkfs("/", 0, 0);
+        printk("mkfs:  %d\n", res);
         res = f_mount(&fs, "/", 1); //Remount
+        printk("mount:  %d\n", res);
     }
 
     /* Create a file as new */

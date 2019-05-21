@@ -1,6 +1,7 @@
 #ifndef K_FS_H
 #define K_FS_H
 #include <inc/types.h>
+#include <inc/stdio.h>
 
 #define FS_FD_MAX 10
 
@@ -11,7 +12,7 @@ struct fs_dev
 
 	char  path[32];				/* File system mount point */
 	const struct fs_ops* ops;	/* Operations for file system type */
-
+    const struct file_ops *fops;
 	void *data;				/* Specific file system data */
 };
 
@@ -28,7 +29,8 @@ struct fs_fd
     size_t 	size;			/* Size in bytes */
     off_t  	pos;			/* Current file position */
 
-    void *data;					/* Specific file system data */
+    void *fdata;					/* Specific file system data */
+    void *ddata;
 };
 
 /* It's low level disk operators */
@@ -58,6 +60,15 @@ struct fs_ops
 };
 
 
+struct file_ops
+{
+    int (*opendir)  (struct fs_fd* fd);
+    int (*closedir) (struct fs_fd* fd);
+    int (*readdir)  (struct fs_fd* fd, struct stat *buf);
+    int (*mkdir)    (struct fs_fd* fs, const char* pathname);
+    int (*stat)     (const char* path, struct stat *buf);
+};
+
 int fs_init();
 int fs_mount(const char* device_name, const char* path, const void* data);
 
@@ -69,8 +80,15 @@ int file_write(struct fs_fd* fd, const void *buf, size_t len);
 int file_lseek(struct fs_fd* fd, off_t offset);
 int file_unlink(const char *path);
 
+int file_stat(const char *path, struct stat *buf);
+int file_opendir(struct fs_fd* fd, const char *path);
+int file_closedir(struct fs_fd* fd);
+int file_readdir(struct fs_fd* fd, struct stat *buf);
+
 struct fs_fd* fd_get(int fd);
 void fd_put(struct fs_fd* fd);
 int fd_new(void);
+off_t fd_get_pos(struct fs_fd* fd);
+off_t fd_get_size(struct fs_fd* fd);
 
 #endif

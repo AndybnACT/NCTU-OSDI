@@ -28,6 +28,11 @@ int filetest3(int argc, char **argv);
 int filetest4(int argc, char **argv);
 int filetest5(int argc, char **argv);
 int spinlocktest(int argc, char **argv);
+int ls(int argc, char **argv);
+int rm(int argc, char **argv);
+int touch(int argc, char **argv);
+int cmd_mkdir(int argc, char **argv);
+int onebytetest(int argc, char **argv);
 
 struct Command commands[] = {
   { "help", "Display this list of commands", mon_help },
@@ -43,7 +48,12 @@ struct Command commands[] = {
   { "filetest3", "Laqrge block test", filetest3},
   { "filetest4", "Error test", filetest4},
   { "filetest5", "unlink test", filetest5},
-  { "spinlocktest", "Test spinlock", spinlocktest }
+  { "spinlocktest", "Test spinlock", spinlocktest },
+  { "ls", "list files in a directory", ls},
+  { "rm", "Unlink a file", rm},
+  { "touch", "create a new empty file", touch},
+  { "mkdir", "create an empty directory", cmd_mkdir},
+  { "onebytetest", "fs size test", onebytetest}
 };
 const int NCOMMANDS = (sizeof(commands)/sizeof(commands[0]));
 
@@ -536,6 +546,111 @@ int fs_speed_test(int argc, char **argv)
     }
 }
 
+int ls(int argc, char **argv)
+{
+    struct stat stat={0, };
+    struct stat stat0={0, };
+    int res;
+    if (argc != 2) {
+        cprintf("Usage: ls [path]\n");
+        return 0;
+    }
+    int fd = opendir(argv[1]);
+    if (fd < 0) {
+        cprintf("opendir error\n");
+        return 0;
+    }
+    while (1) {
+        res = readdir(fd, &stat);
+        if (res) {
+            cprintf("%d error reading dir\n", res);
+            break;
+        }
+        if (strlen(stat.name) == 0) {
+            break;
+        }
+        cprintf("%s\t%d\t%s\n", (stat.attr&S_IFDIR)?"d":"-"
+                              , stat.size, stat.name);
+        
+    }
+    closedir(fd);
+    return 0;
+}
+
+int rm(int argc, char **argv)
+{
+    if (argc != 2) {
+        cprintf("Usage: rm [path to a file]\n");
+        return 0;
+    }
+    int res = unlink(argv[1]);
+    if (res) {
+        cprintf("Cannot remove %s\n", argv[1]);
+    }
+    return 0;
+}
+int touch(int argc, char **argv)
+{
+    if (argc != 2) {
+        cprintf("Usage: touch [path to a new file]\n");
+        return 0;
+    }
+    int res = open(argv[1], O_CREAT, 0x0);
+    if (res == -STATUS_EEXIST) {
+        cprintf("file exist\n");
+        return 0;
+    }
+    return 0;
+}
+
+int cmd_mkdir(int argc, char **argv)
+{
+    if (argc != 2) {
+        cprintf("Usage: mkdir [dir]\n");
+    }
+    int res = mkdir(argv[1]);
+    if (res) {
+        cprintf("%d, error creating dir\n");
+        return 0;
+    }
+    return 0;
+}
+#define nambufsize 3
+int onebytetest(int argc, char **argv)
+{
+    char namebuf[nambufsize+1] = {"aaa\0"};
+    char onebyte = 0x7a;
+    int cnt = 0;
+    int fd;
+    size_t i, j;
+    while (1) {
+        cnt ++;
+        namebuf[0]++;
+        for (i = 0, j = 26; i < nambufsize-1; i++, j *= 26) {
+            if (!(cnt % j)) {
+                namebuf[i] = (char) 0x61;
+                namebuf[i+1] += 1;
+            }
+        }
+        if (namebuf[i] > (char) 0x7a) {
+            break;
+        }
+        cprintf("writing #%d file, name %s\n", cnt, namebuf);
+        fd = open(namebuf, O_RDWR|O_CREAT, 0x0);
+        if (fd < 0) {
+            cprintf("error opening file, [%d]\n", fd);
+            return 0;
+        }
+        if (write(fd, "a", 1) != 1) {
+        // if (write(fd, "a", 1048576) != 1048576) {
+            cprintf("error writing one byte\n");
+            return 0;
+        }
+        close(fd);
+    }
+    return 0;
+    
+}
 void shell()
 {
   char *buf;

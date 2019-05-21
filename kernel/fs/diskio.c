@@ -3,6 +3,10 @@
 #include <fat/diskio.h>
 #include <fat/ff.h>
 #include <kernel/drv/disk.h>
+#include <inc/assert.h>
+#include <kernel/timer.h>
+
+#define SECTOR_SIZE 512
 
 /*TODO: Lab7, low level file operator.
  *  You have to provide some device control interface for 
@@ -66,6 +70,15 @@ DSTATUS disk_initialize (BYTE pdrv)
   /* Note: You can create a function under disk.c  
    *       to help you get the disk status.
    */
+    int err;
+    unsigned char buf[SECTOR_SIZE];
+    disk_init();
+    if (DISK_ID > 3 || ide_devices[DISK_ID].Reserved == 0)
+        return STA_NOINIT;
+    else if (ide_devices[DISK_ID].Type == IDE_ATAPI) 
+        return STA_PROTECT;
+    else
+        return 0;
 }
 
 /**
@@ -82,6 +95,15 @@ DSTATUS disk_status (BYTE pdrv)
 /* Note: You can create a function under disk.c  
  *       to help you get the disk status.
  */
+    int status = ide_read(DISK_ID, ATA_REG_STATUS) ;
+    if (DISK_ID > 3 || ide_devices[DISK_ID].Reserved == 0 || 
+        (status != 0 && !(status&ATA_SR_DRDY))){
+        printk("<%x>\n", ide_read(DISK_ID, ATA_REG_STATUS));
+        return STA_NOINIT;
+    }else if (ide_devices[DISK_ID].Type == IDE_ATAPI) 
+        return STA_PROTECT;
+    else
+        return 0;
 }
 
 /**
@@ -100,7 +122,32 @@ DRESULT disk_read (BYTE pdrv, BYTE* buff, DWORD sector, UINT count)
     int i = count;
     BYTE *ptr = buff;
     UINT cur_sector = sector;
-    /* TODO */
+    err = disk_status(DISK_ID);
+    switch (err) {
+        case STA_NOINIT:
+            return RES_NOTRDY;
+        case STA_PROTECT:
+            return RES_WRPRT;
+    }
+    while ((i - 255) > 0) {
+        printk("reading...\n");
+        err = ide_read_sectors(DISK_ID, 255, cur_sector, ptr);
+        if (err < 0) {
+            panic("disk_read");
+            return RES_ERROR;
+        }
+        cur_sector += 255;
+        ptr        += 255*SECTOR_SIZE;
+        i          -= 255;
+    }
+    if (i != 0) 
+        err = ide_read_sectors(DISK_ID, i, cur_sector, ptr);
+    if (err < 0) {
+        panic("disk_read");
+        return RES_ERROR;
+    }
+    assert(err == 0);
+    return RES_OK;
 }
 
 /**
@@ -120,7 +167,35 @@ DRESULT disk_write (BYTE pdrv, const BYTE* buff, DWORD sector, UINT count)
     BYTE *ptr = buff;
     UINT cur_sector = sector;
     /* TODO */    
+    err = disk_status(DISK_ID);
+    switch (err) {
+        case STA_NOINIT:
+            // panic("disk_write not ready");
+            return RES_NOTRDY;
+        case STA_PROTECT:
+            // panic("disk_write w protect");
+            return RES_WRPRT;
+    }
+    while ((i - 255) > 0) {
+        printk("writing...\n");
+        err = ide_write_sectors(DISK_ID, 255, cur_sector, ptr);
+        if (err < 0) {
+            panic("disk_write");
+            return RES_ERROR;
+        }
+        cur_sector += 255;
+        ptr        += 255*SECTOR_SIZE;
+        i          -= 255;
+    }
 
+    if (i != 0) 
+        err = ide_write_sectors(DISK_ID, i, cur_sector, ptr);
+    if (err < 0) {
+        panic("disk_write");
+        return RES_ERROR;
+    }
+    assert(err == 0);
+    return RES_OK;
 }
 
 /**
@@ -137,7 +212,26 @@ DRESULT disk_write (BYTE pdrv, const BYTE* buff, DWORD sector, UINT count)
 DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void* buff)
 {
     uint32_t *retVal = (uint32_t *)buff;
+    DWORD *retsize;
+    unsigned int channel = ide_devices[DISK_ID].Channel;
     /* TODO */    
+    
+    switch (cmd) {
+        case GET_SECTOR_COUNT:
+            retsize = buff;
+            *retsize = ide_devices[DISK_ID].Size;
+            return RES_OK;
+        case GET_BLOCK_SIZE:
+            retsize = buff;
+            *retsize = SECTOR_SIZE;
+            return RES_OK;
+        case CTRL_SYNC:
+            ide_write(channel, ATA_REG_COMMAND, ATA_CMD_CACHE_FLUSH);
+            ide_polling(channel, 0); // Polling.
+            return RES_OK;
+        default:
+            panic("ioctl not implemented");
+    }
 }
 
 /**
@@ -147,4 +241,5 @@ DRESULT disk_ioctl (BYTE pdrv, BYTE cmd, void* buff)
 DWORD get_fattime (void)
 {
     /* TODO */
+    return sys_get_ticks();
 }

@@ -70,6 +70,14 @@ void sys_cls(void);
 #define S_ISGID  	0002000
 #define S_ISVTX  	0001000
 
+struct stat
+{
+    char name[64];
+    size_t size;
+    uint32_t date;
+    uint32_t attr;
+};
+
 #endif
 
 //lib/kbd.c
@@ -108,6 +116,10 @@ int open(const char *file, int flags, int mode);
 int close(int d);
 int read(int fd, void *buf, size_t len);
 int write(int fd, const void *buf, size_t len);
+int opendir(const char* pth);
+int readdir(int fd, struct stat*);
+int closedir(int fd);
+int mkdir(const char*);
 
 off_t lseek(int fd, off_t offset, int whence);
 
